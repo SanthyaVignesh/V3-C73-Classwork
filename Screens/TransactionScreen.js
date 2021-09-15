@@ -2,6 +2,7 @@ import * as React from 'react';
 import {Text,View,StyleSheet,TextInput, TouchableOpacity, ImageBackground ,Image} from 'react-native';
 import * as Permissions from 'expo-permissions';
 import { BarCodeScanner } from 'expo-barcode-scanner';
+import db from "../config";
 
 const bgImg = require("../assets/images/background2.png");
 const appIcon = require("../assets/images/appIcon.png");
@@ -50,7 +51,28 @@ export default class TransactionScreen extends React.Component{
        
     }
 
-    
+    handleTransaction = ()=>{
+        var {bookId} = this.state;
+        db.collection("books").doc(bookId).get().then(
+            (doc)=>{
+                var book = doc.data();
+                if(book.is_book_available){
+                    this.initiateBookIssue();
+                }
+                else{
+                    this.initiateBookReturn();
+                }
+            }
+        )
+    }
+
+    initiateBookIssue(){
+        console.log("Book issued to the student")
+    }
+
+    initiateBookReturn(){
+        console.log("Book returned by the student") 
+    }
 
     render(){
         const {domState,hasCamPermission,scanned,bookId,studentId} = this.state;
@@ -101,7 +123,13 @@ export default class TransactionScreen extends React.Component{
                             </TouchableOpacity>
 
                         </View>
+                        <TouchableOpacity style = {[styles.button,{marginTop : 25}]}>
+                        <Text style = {styles.buttonText}>
+                            Submit
+                        </Text>
+                    </TouchableOpacity>
                     </View>  
+                    
                     </ImageBackground> 
                 </View>
             );
@@ -140,7 +168,7 @@ const styles =  StyleSheet.create({
     },
     lowerContainer :{
         flex : 0.5,
-        alignItems : "center"
+        alignItems : "center",justifyContent :"center"
     },
     textinputContainer : {
         borderWidth :2,
@@ -173,5 +201,6 @@ const styles =  StyleSheet.create({
         fontSize : 24,
         fontFamily : "Oldenburg_400Regular",
         color : "#FFFFFF"
-    }
+    },
+
 })
