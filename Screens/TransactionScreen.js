@@ -1,8 +1,9 @@
 import * as React from 'react';
-import {Text,View,StyleSheet,TextInput, TouchableOpacity, ImageBackground ,Image} from 'react-native';
+import {Text,View,StyleSheet,TextInput, TouchableOpacity, ImageBackground ,Image ,KeyboardAvoidingView, SafeAreaView, Dimensions} from 'react-native';
 import * as Permissions from 'expo-permissions';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import db from "../config";
+import firebase from 'firebase'
 
 const bgImg = require("../assets/images/background2.png");
 const appIcon = require("../assets/images/appIcon.png");
@@ -17,7 +18,9 @@ export default class TransactionScreen extends React.Component{
             hasCamPermission : null,
             scanned : false,
             bookId : "",
-            studentId : ""
+            studentId : "",
+            bookName:"",
+            studentName:"" //Sorry.. There was = ok let us check now
         };
     }
 
@@ -51,27 +54,107 @@ export default class TransactionScreen extends React.Component{
        
     }
 
+
+    getBookDetails = (bookId)=>{
+        bookId = bookId.trim();
+        db.collection("books")
+          .where("book_id", "==",bookId)
+          .get()
+          .then((snapshot)=>{
+                snapshot.docs.map((doc)=>{
+                    this.setState({
+                        bookName : doc.data().book_details.book_name
+                    })
+                })
+          })
+    }
+
+    getStudentDetails = (studentId)=>{
+        studentId = studentId.trim();
+        db.collection("students")
+          .where("student_id", "==",studentId)
+          .get()
+          .then((snapshot)=>{
+                snapshot.docs.map((doc)=>{
+                    this.setState({//book_name as in firestore??pls wait
+                        studentName : doc.data().student_details.student_name// I think state variable not created in constructor?? can that be
+                    })
+                })
+          })
+    }
+
     handleTransaction = ()=>{
-        var {bookId} = this.state;
+        var {bookId , studentId} = this.state;
+         this.getBookDetails(bookId);
+         this.getStudentDetails(studentId);
         db.collection("books").doc(bookId).get().then(
             (doc)=>{
                 var book = doc.data();
                 if(book.is_book_available){
-                    this.initiateBookIssue();
+                    this.initiateBookIssue(studentId,bookId,this.state.studentName,this.state.bookName);
                 }
                 else{
-                    this.initiateBookReturn();
+                    this.initiateBookReturn(studentId,bookId,studentName,bookName);
                 }
             }
         )
     }
 
-    initiateBookIssue(){
-        console.log("Book issued to the student")
+
+    initiateBookIssue(studentId, bookId,studentName ,bookName){
+        db.collection("transactions").add({
+            student_id : studentId,
+            student_name : studentName,
+            book_id : bookId,
+            book_name : bookName,
+            date : firebase.firestore.Timestamp.now().toDate(),
+            transaction_type : "issue"
+        });
+
+        db.collection("books")
+            .doc(bookId)
+            .update({
+                is_book_available : false
+            })
+
+        db.collection("students")
+            .doc(studentId)
+            .update({
+                number_of_books_issued : firebase.firestore.FieldValue.increment(1)
+            })
+
+        this.setState({
+            bookId : "",
+            studentId : ""
+        })
     }
 
-    initiateBookReturn(){
-        console.log("Book returned by the student") 
+    initiateBookReturn(studentId,bookId,studentName,bookName){
+        db.collection("transactions").add({
+            student_id : studentId,
+            student_name : studentName,
+            book_id : bookId,
+            book_name : bookName,
+            date : firebase.firestore.Timestamp.now().toDate(),
+            transaction_type : "return"
+        });
+
+        db.collection("books")
+            .doc(bookId)
+            .update({
+                is_book_available : true
+            })
+
+        db.collection("students")
+            .doc(studentId)
+            .update({
+                number_of_books_issued : firebase.firestore.FieldValue.increment(-1)
+            })
+
+        this.setState({
+            bookId : "",
+            studentId : ""
+        })
     }
 
     render(){
@@ -85,9 +168,9 @@ export default class TransactionScreen extends React.Component{
         else{
             return(
                 
-                <View style = {styles.viewContainer}>
+                <KeyboardAvoidingView  behavior = "padding" style = {styles.viewContainer} >
                     <ImageBackground source = {bgImg} style = {styles.bgImage}>
-                    <View  style = {styles.upperContainer}>
+                   <View  style = {styles.upperContainer}>
                         <Image source = {appIcon} style = {styles.appIcon}></Image>
                         <Image source = {appName} style = {styles.appName}></Image>
                     </View>
@@ -97,7 +180,8 @@ export default class TransactionScreen extends React.Component{
                                 style = {styles.textStyle}
                                 placeholder = {"Book id"}
                                 placeholderTextColor = {"#FFFFFF"}
-                                value = {bookId}
+                                onChangeText={(text)=>{this.setState({bookId:text})}}
+                                value = {this.state.bookId}
                             />
                             <TouchableOpacity 
                                 style = {styles.button}
@@ -112,7 +196,12 @@ export default class TransactionScreen extends React.Component{
                                 style = {styles.textStyle}
                                 placeholder = {"Student id"}
                                 placeholderTextColor = {"#FFFFFF"}
-                                value = {studentId}
+                                onChangeText  = {(text)=>{
+                                    this.setState({
+                                        studentId : text
+                                    })
+                                }}
+                                value = {this.state.studentId}
                             />
                             <TouchableOpacity 
                                 style = {styles.button}
@@ -123,15 +212,21 @@ export default class TransactionScreen extends React.Component{
                             </TouchableOpacity>
 
                         </View>
-                        <TouchableOpacity style = {[styles.button,{marginTop : 25}]}>
+                        <TouchableOpacity style = {[styles.button,{marginTop : 25}]} onPress = {()=>{
+                            this.handleTransaction();
+                        }}>
                         <Text style = {styles.buttonText}>
                             Submit
                         </Text>
                     </TouchableOpacity>
                     </View>  
+                 
                     
                     </ImageBackground> 
-                </View>
+
+                </KeyboardAvoidingView>
+               
+           
             );
     
         }
@@ -162,13 +257,11 @@ const styles =  StyleSheet.create({
     },
     viewContainer : {
         flex : 1,
-        justifyContent : "center",
-        alignItems  : "center",
         backgroundColor :  "#5653D4"
     },
     lowerContainer :{
         flex : 0.5,
-        alignItems : "center",justifyContent :"center"
+        alignItems : "center",
     },
     textinputContainer : {
         borderWidth :2,
