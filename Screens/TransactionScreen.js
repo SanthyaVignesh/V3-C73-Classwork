@@ -92,9 +92,12 @@ export default class TransactionScreen extends React.Component{
                 var book = doc.data();
                 if(book.is_book_available){
                     this.initiateBookIssue(studentId,bookId,this.state.studentName,this.state.bookName);
+                    alert("Book Issued to the student");
                 }
                 else{
+                    var {studentName,bookName} = this.state
                     this.initiateBookReturn(studentId,bookId,studentName,bookName);
+                    alert("Book returned to the library");
                 }
             }
         )
@@ -120,7 +123,7 @@ export default class TransactionScreen extends React.Component{
         db.collection("students")
             .doc(studentId)
             .update({
-                number_of_books_issued : firebase.firestore.FieldValue.increment(1)
+                no_of_books_issued : firebase.firestore.FieldValue.increment(1)
             })
 
         this.setState({
@@ -148,7 +151,7 @@ export default class TransactionScreen extends React.Component{
         db.collection("students")
             .doc(studentId)
             .update({
-                number_of_books_issued : firebase.firestore.FieldValue.increment(-1)
+                no_of_books_issued : firebase.firestore.FieldValue.increment(-1)
             })
 
         this.setState({
@@ -169,8 +172,11 @@ export default class TransactionScreen extends React.Component{
             return(
                 
                 <KeyboardAvoidingView  behavior = "padding" style = {styles.viewContainer} >
-                    <ImageBackground source = {bgImg} style = {styles.bgImage}>
+                    <View style = {[styles.viewContainer,{flex : 1,alignItems :"center",justifyContent : "center"}]}>
+                <ImageBackground source = {bgImg} style = {styles.bgImage}>
+
                    <View  style = {styles.upperContainer}>
+                       
                         <Image source = {appIcon} style = {styles.appIcon}></Image>
                         <Image source = {appName} style = {styles.appName}></Image>
                     </View>
@@ -223,9 +229,9 @@ export default class TransactionScreen extends React.Component{
                  
                     
                     </ImageBackground> 
-
+                        </View>
                 </KeyboardAvoidingView>
-               
+             
            
             );
     
@@ -257,7 +263,8 @@ const styles =  StyleSheet.create({
     },
     viewContainer : {
         flex : 1,
-        backgroundColor :  "#5653D4"
+        backgroundColor :  "#5653D4",
+        alignItems : "center"
     },
     lowerContainer :{
         flex : 0.5,
